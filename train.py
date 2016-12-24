@@ -12,7 +12,6 @@ import pickle
 class Encoder(chainer.Chain):
     def __init__(self, n_vocab, n_units, train=True):
         super(Encoder, self).__init__(
-                embed=L.EmbedID(n_vocab, n_units),
                 RNN=L.LSTM(n_units, n_units)
                 )
 
@@ -21,8 +20,7 @@ class Encoder(chainer.Chain):
 
     def __call__(self, sentence):
         for word in sentence:
-            w = embed(word)
-            context = self.LSTM(w)
+            context = self.RNN(word)
         return context
 
 class Decoder(chainer.Chain):
@@ -56,24 +54,28 @@ class SkipThought(chainer.Chain):
 
     def __init__(self, n_vocab, n_units, train=True):
         super(SkipThought, self).__init__(
+                embed=L.EmbedID(n_vocab, n_units),
                 encoder = Encoder(n_vocab, n_units),
                 prev_decoder = Decoder(n_vocab, n_units),
                 self_decoder = Decoder(n_vocab, n_units),
                 next_decoder = Decoder(n_vocab, n_units)
         )
+        self.train = train
 
-    def __call__(self, input_sentence, target_sentences, train):
-        context = self.encoder(input_sentence)
+    def __call__(self, input_sentences):
+        print("++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+--+-")
+        print(input_sentences[:,1].data)
+        context = self.encoder(self.embed(input_sentences[:,1]))
         loss = 0
         outputs = []
-        if  train:
+        if  self.train:
             for decoder, i in zip([prev_decoder, self_decoder, next_decoder], range(3)):
-                o, l = decoder(context, input_sentence, target_sentences[0], train)
+                o, l = decoder(context, input_sentences[:,1], input_sentences[:,i], self.train)
                 loss += l
                 outputs.append(o)
             return outputs, loss
         else:
-            o, l = decoder(context, input_sentence, None, train)
+            o, l = decoder(context, input_sentence, None, self.train)
             return o
 
 class DocumentIterator(chainer.dataset.Iterator):
@@ -91,7 +93,9 @@ class DocumentIterator(chainer.dataset.Iterator):
     def gen_data(self, dataset):
         for doc in dataset:
             for i in range(1, len(doc)-1):
-                yield [doc[i-1], doc[i], doc[i+1]]
+                yield (np.asarray(doc[i-1], dtype=np.int32),
+                        np.asarray(doc[i], dtype=np.int32),
+                        np.asarray(doc[i+1], dtype=np.int32))
 
 class BPTTUpdater(training.StandardUpdater):
 
@@ -109,7 +113,7 @@ class BPTTUpdater(training.StandardUpdater):
         for i in range(self.bprop_len):
             batch = train_iter.__next__()
             x = self.converter(batch, self.device)
-            loss += optimizer.target(chainer.Variable(x[:,1]), chainer.Variable(x))
+            loss += optimizer.target(chainer.Variable(x), chainer.Variable(x))
 
         optimizer.target.cleargrads()
         loss.backward()
@@ -122,9 +126,12 @@ f.close()
 index2word = {wid: word for word, wid in word2index.items()}
 n_vocab = len(word2index)
 
+docs_data = docs_to_index(word2index, 'data')
+iter = DocumentIterator(docs_data, 5)
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batchsize', '-b', type=int, default=20,
+    parser.add_argument('--batchsize', '-b', type=int, default=1,
             help='batch size')
     parser.add_argument('--bproplen', '-l', type=int, default=35,
             help='length of trancated BPTT')
@@ -142,13 +149,14 @@ def main():
             help='Number of LSTM units in each layer')
     args = parser.parse_args()
 
-    print(args.source)
+    print("\n-------------------------------------------")
 
     skipthought = SkipThought(n_vocab, args.unit)
     model = L.Classifier(skipthought)
 
     docs_data = docs_to_index(word2index, args.source)
     train_iter = DocumentIterator(docs_data, args.batchsize)
+    print("batchsize = {}".format(args.batchsize))
 
     optimizer = chainer.optimizers.SGD(lr=1.0)
     optimizer.setup(model)

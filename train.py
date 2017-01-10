@@ -12,15 +12,16 @@ import pickle
 class Encoder(chainer.Chain):
     def __init__(self, n_vocab, n_units, train=True):
         super(Encoder, self).__init__(
+                embed=L.EmbedID(n_vocab, n_units),
                 RNN=L.LSTM(n_units, n_units)
                 )
 
     def reset():
         self.RNN.reset_state()
 
-    def __call__(self, sentence):
-        for word in sentence:
-            context = self.RNN(word)
+    def __call__(self, xs):
+        for x in xs:
+            context = self.RNN(self.embed(x))
         return context
 
 class Decoder(chainer.Chain):
@@ -64,13 +65,13 @@ class SkipThought(chainer.Chain):
 
     def __call__(self, input_sentences):
         print("++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+--+-")
-        print(input_sentences[:,1].data)
-        context = self.encoder(self.embed(input_sentences[:,1]))
+        print(input_sentences.data)
+        context = self.encoder(input_sentences[:,1])
         loss = 0
         outputs = []
         if  self.train:
-            for decoder, i in zip([prev_decoder, self_decoder, next_decoder], range(3)):
-                o, l = decoder(context, input_sentences[:,1], input_sentences[:,i], self.train)
+            for decoder, i in zip([self.prev_decoder, self.self_decoder, self.next_decoder], range(3)):
+                o, l = decoder(context, input_sentences[:,i], self.train)
                 loss += l
                 outputs.append(o)
             return outputs, loss
@@ -131,7 +132,7 @@ iter = DocumentIterator(docs_data, 5)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batchsize', '-b', type=int, default=1,
+    parser.add_argument('--batchsize', '-b', type=int, default=3,
             help='batch size')
     parser.add_argument('--bproplen', '-l', type=int, default=35,
             help='length of trancated BPTT')

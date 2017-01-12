@@ -10,19 +10,31 @@ import numpy as np
 import pickle
 
 class Encoder(chainer.Chain):
-    def __init__(self, n_vocab, n_units, train=True):
+    def __init__(self, n_vocab, n_units, train=True, n_layers=1, use_cudnn=False, dropout=0.5):
         super(Encoder, self).__init__(
                 embed=L.EmbedID(n_vocab, n_units),
-                RNN=L.LSTM(n_units, n_units)
+                rnn=L.NStepLSTM(n_layers, n_units, n_units, dropout, use_cudnn)#layer, in, out
                 )
+        self.train = train
+        self.n_layers = n_layers
+        self.n_units = n_units
+        self.reset()
 
-    def reset():
-        self.RNN.reset_state()
+    def reset(self):
+        self.hx = None
+        self.cx = None
 
     def __call__(self, xs):
-        for x in xs:
-            context = self.RNN(self.embed(x))
-        return context
+        batch_size = len(xs)
+        print('batch_size = {}'.format(batch_size))
+        if self.hx is None:
+            self.hx = chainer.Variable(np.zeros((self.n_layers, batch_size, self.n_units), dtype=np.float32))
+        if self.cx is None:
+            self.cx = chainer.Variable(np.zeros((self.n_layers, batch_size, self.n_units), dtype=np.float32))
+        print(xs.data)
+        print(type(xs.data))
+        self.hx, self.cx, _ = self.rnn(self.hx, self.cx, xs, self.train)
+        return self.hx
 
 class Decoder(chainer.Chain):
     def __init__(self, n_vocab, n_units, train=True):
@@ -64,8 +76,6 @@ class SkipThought(chainer.Chain):
         self.train = train
 
     def __call__(self, input_sentences):
-        print("++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+--+-")
-        print(input_sentences.data)
         context = self.encoder(input_sentences[:,1])
         loss = 0
         outputs = []
@@ -157,7 +167,6 @@ def main():
 
     docs_data = docs_to_index(word2index, args.source)
     train_iter = DocumentIterator(docs_data, args.batchsize)
-    print("batchsize = {}".format(args.batchsize))
 
     optimizer = chainer.optimizers.SGD(lr=1.0)
     optimizer.setup(model)

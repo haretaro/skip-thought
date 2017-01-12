@@ -26,14 +26,12 @@ class Encoder(chainer.Chain):
 
     def __call__(self, xs):
         batch_size = len(xs)
-        print('batch_size = {}'.format(batch_size))
         if self.hx is None:
             self.hx = chainer.Variable(np.zeros((self.n_layers, batch_size, self.n_units), dtype=np.float32))
         if self.cx is None:
             self.cx = chainer.Variable(np.zeros((self.n_layers, batch_size, self.n_units), dtype=np.float32))
-        print(xs.data)
-        print(type(xs.data))
-        self.hx, self.cx, _ = self.rnn(self.hx, self.cx, xs, self.train)
+        xs_ = [self.embed(x) for x in xs]
+        self.hx, self.cx, _ = self.rnn(self.hx, self.cx, xs_, self.train)
         return self.hx
 
 class Decoder(chainer.Chain):

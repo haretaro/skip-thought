@@ -32,34 +32,36 @@ class Encoder(chainer.Chain):
             self.cx = chainer.Variable(np.zeros((self.n_layers, batch_size, self.n_units), dtype=np.float32))
         xs_ = [self.embed(x) for x in xs]
         self.hx, self.cx, _ = self.rnn(self.hx, self.cx, xs_, self.train)
-        return self.hx
+        return self.hx[0]
 
 class Decoder(chainer.Chain):
     def __init__(self, n_vocab, n_units, train=True):
         super(Decoder, self).__init__(
-                RNN=L.LSTM(n_units, n_units),
+                rnn=L.LSTM(n_units, n_units),
                 output_layer=L.Linear(n_units, n_vocab)
                 )
         self.max_len=100
 
     def __call__(self, context, target, train):
-        output = []
+        outputs = []
         loss = 0
         if train:
-            for target_word in target:
-                output_word = output_layer(context)
-                t = chainer.Variable(np.array([target_word], dtype=np.int32))
-                loss += F.softmax_cross_entropy(output_word, t)
-                output += output_word.data
-                return output, loss
+            for target_sentence in target:
+                output = []
+                print(target_sentence.data)
+                output = [self.output_layer(context) for _ in target_sentence]
+                output = np.asarray(output, dtype=np.float32)
+                loss += F.softmax_cross_entropy(output, target_sentence)
+                outputs.append(output)
+            return outputs, loss
         else:
             while next_word is not word2index(eos) and len(output) < self.max_len:
-                output_word = output_layer(context)
+                output_word = self.output_layer(context)
                 output += output_word.data
                 return output
 
-    def reset():
-        self.RNN.reset_state()
+    def reset(self):
+        self.rnn.reset_state()
 
 class SkipThought(chainer.Chain):
 
@@ -159,6 +161,9 @@ def main():
     args = parser.parse_args()
 
     print("\n-------------------------------------------")
+    print('n_vocab = {}'.format(n_vocab))
+    print('n_unit = {}'.format(args.unit))
+    #1950 = 650 * 3!!!!!
 
     skipthought = SkipThought(n_vocab, args.unit)
     model = L.Classifier(skipthought)

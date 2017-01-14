@@ -48,8 +48,8 @@ class Decoder(chainer.Chain):
         if train:
             for target_sentence in target:
                 output = []
-                print(target_sentence.data)
                 output = [self.output_layer(context) for _ in target_sentence]
+                print(output)
                 output = np.asarray(output, dtype=np.float32)
                 loss += F.softmax_cross_entropy(output, target_sentence)
                 outputs.append(output)

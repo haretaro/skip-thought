@@ -35,25 +35,27 @@ class Encoder(chainer.Chain):
         return self.hx[0]
 
 class Decoder(chainer.Chain):
-    def __init__(self, n_vocab, n_units, train=True):
+    def __init__(self, n_vocab, n_units, stop_wid, train=True):
         super(Decoder, self).__init__(
                 rnn=L.LSTM(n_units, n_units),
                 output_layer=L.Linear(n_units, n_vocab)
                 )
         self.max_len=100
+        self.stop_wid = stop_wid
 
     def __call__(self, context, target, train):
-        outputs = []
+        output = None
         loss = 0
         if train:
-            for target_sentence in target:
-                output = []
-                output = [self.output_layer(context) for _ in target_sentence]
-                print(output)
-                output = np.asarray(output, dtype=np.float32)
-                loss += F.softmax_cross_entropy(output, target_sentence)
-                outputs.append(output)
-            return outputs, loss
+            length = max([len(x) for x in target])
+            for i in range(length):
+                output_word = self.output_layer(context)
+                target_word = [target[j][i].data if i < len(target[j]) else self.stop_wid for j in range(len(target))]
+                target_word = np.asarray(target_word, dtype=np.int32)
+                loss += F.softmax_cross_entropy(output_word, target_word)
+                output = target_word if output is None else np.c_[output, target_word]
+            print(output)
+            return output, loss
         else:
             while next_word is not word2index(eos) and len(output) < self.max_len:
                 output_word = self.output_layer(context)
@@ -65,13 +67,13 @@ class Decoder(chainer.Chain):
 
 class SkipThought(chainer.Chain):
 
-    def __init__(self, n_vocab, n_units, train=True):
+    def __init__(self, n_vocab, n_units, stop_wid, train=True):
         super(SkipThought, self).__init__(
                 embed=L.EmbedID(n_vocab, n_units),
                 encoder = Encoder(n_vocab, n_units),
-                prev_decoder = Decoder(n_vocab, n_units),
-                self_decoder = Decoder(n_vocab, n_units),
-                next_decoder = Decoder(n_vocab, n_units)
+                prev_decoder = Decoder(n_vocab, n_units, stop_wid),
+                self_decoder = Decoder(n_vocab, n_units, stop_wid),
+                next_decoder = Decoder(n_vocab, n_units, stop_wid)
         )
         self.train = train
 
@@ -80,6 +82,7 @@ class SkipThought(chainer.Chain):
         loss = 0
         outputs = []
         if  self.train:
+            #TODO:range使わないで書けた気がする
             for decoder, i in zip([self.prev_decoder, self.self_decoder, self.next_decoder], range(3)):
                 o, l = decoder(context, input_sentences[:,i], self.train)
                 loss += l
@@ -163,9 +166,10 @@ def main():
     print("\n-------------------------------------------")
     print('n_vocab = {}'.format(n_vocab))
     print('n_unit = {}'.format(args.unit))
-    #1950 = 650 * 3!!!!!
+    print('batch size = {}'.format(args.batchsize))
+    print('stop_wid = {}'.format(word2index['\n']))
 
-    skipthought = SkipThought(n_vocab, args.unit)
+    skipthought = SkipThought(n_vocab, args.unit, word2index['\n'])
     model = L.Classifier(skipthought)
 
     docs_data = docs_to_index(word2index, args.source)
@@ -189,7 +193,6 @@ def main():
         ))
 
     trainer.run()
-
 
 if __name__ == '__main__':
     main()

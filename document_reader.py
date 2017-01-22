@@ -32,8 +32,10 @@ if __name__ == '__main__':
 
     for doc in seq:
         for line in doc:
-            words = ""
+            words = ''
+            ids = ''
             for wid in line:
                 words += index2word[wid]
+                ids += ' '+str(wid)
             print(words)
-
+            print(ids)

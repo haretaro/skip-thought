@@ -87,8 +87,6 @@ class SkipThought(chainer.Chain):
                 o, l = decoder(context, input_sentences[:,i], self.train)
                 loss += l
                 outputs.append(o)
-            print(loss.data)
-            print(type(loss.data))
             return loss
         else:
             raise(NotImplemented)

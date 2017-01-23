@@ -87,8 +87,11 @@ class SkipThought(chainer.Chain):
                 o, l = decoder(context, input_sentences[:,i], self.train)
                 loss += l
                 outputs.append(o)
-            return outputs, loss
+            print(loss.data)
+            print(type(loss.data))
+            return loss
         else:
+            raise(NotImplemented)
             o, l = decoder(context, input_sentence, None, self.train)
             return o
 
@@ -127,7 +130,7 @@ class BPTTUpdater(training.StandardUpdater):
         for i in range(self.bprop_len):
             batch = train_iter.__next__()
             x = self.converter(batch, self.device)
-            loss += optimizer.target(chainer.Variable(x), chainer.Variable(x))
+            loss += optimizer.target(chainer.Variable(x))
 
         optimizer.target.cleargrads()
         loss.backward()
@@ -169,8 +172,7 @@ def main():
     print('batch size = {}'.format(args.batchsize))
     print('stop_wid = {}'.format(word2index['\n']))
 
-    skipthought = SkipThought(n_vocab, args.unit, word2index['\n'])
-    model = L.Classifier(skipthought)
+    model = SkipThought(n_vocab, args.unit, word2index['\n'])
 
     docs_data = docs_to_index(word2index, args.source)
     train_iter = DocumentIterator(docs_data, args.batchsize)

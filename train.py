@@ -54,7 +54,6 @@ class Decoder(chainer.Chain):
                 target_word = np.asarray(target_word, dtype=np.int32)
                 loss += F.softmax_cross_entropy(output_word, target_word)
                 output = target_word if output is None else np.c_[output, target_word]
-            print(output)
             return output, loss
         else:
             while next_word is not word2index(eos) and len(output) < self.max_len:
@@ -175,7 +174,7 @@ def main():
     docs_data = docs_to_index(word2index, args.source)
     train_iter = DocumentIterator(docs_data, args.batchsize)
 
-    optimizer = chainer.optimizers.SGD(lr=1.0)
+    optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
     optimizer.add_hook(chainer.optimizer.GradientClipping(args.gradclip))
     if args.gpu >= 0:

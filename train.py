@@ -2,6 +2,7 @@ import argparse
 import chainer
 import chainer.links as L
 import chainer.functions as F
+from chainer import cuda
 from chainer import training
 from chainer.iterators import SerialIterator
 from chainer.training import extensions
@@ -9,8 +10,10 @@ from document_reader import docs_to_index
 import numpy as np
 import pickle
 
+xp = None
+
 class Encoder(chainer.Chain):
-    def __init__(self, n_vocab, n_units, train=True, n_layers=1, use_cudnn=False, dropout=0.5):
+    def __init__(self, n_vocab, n_units, train=True, n_layers=1, use_cudnn=True, dropout=0.5):
         super(Encoder, self).__init__(
                 embed=L.EmbedID(n_vocab, n_units),
                 rnn=L.NStepLSTM(n_layers, n_units, n_units, dropout, use_cudnn)#layer, in, out
@@ -77,6 +80,7 @@ class SkipThought(chainer.Chain):
         self.train = train
 
     def __call__(self, input_sentences):
+
         context = self.encoder(input_sentences[:,1])
         loss = 0
         outputs = []
@@ -104,6 +108,10 @@ class DocumentIterator(chainer.dataset.Iterator):
     def epoch_detail(self):
         return self.itter.epoch_detail
 
+    @property
+    def epoch(self):
+        return self.itter.epoch
+
     def gen_data(self, dataset):
         for doc in dataset:
             for i in range(1, len(doc)-1):
@@ -126,26 +134,18 @@ class BPTTUpdater(training.StandardUpdater):
 
         for i in range(self.bprop_len):
             batch = train_iter.__next__()
-            x = self.converter(batch, self.device)
-            loss += optimizer.target(chainer.Variable(x))
+            #x = xp.asarray(batch)
+            x = [chainer.Variable(u) for u in batch]
+            loss += optimizer.target(x)
 
         optimizer.target.cleargrads()
         loss.backward()
         loss.unchain_backward()
         optimizer.update()
 
-f = open('vocab.bin', 'rb')
-word2index = pickle.load(f)
-f.close()
-index2word = {wid: word for word, wid in word2index.items()}
-n_vocab = len(word2index)
-
-docs_data = docs_to_index(word2index, 'data')
-iter = DocumentIterator(docs_data, 5)
-
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batchsize', '-b', type=int, default=3,
+    parser.add_argument('--batchsize', '-b', type=int, default=100,
             help='batch size')
     parser.add_argument('--bproplen', '-l', type=int, default=35,
             help='length of trancated BPTT')
@@ -163,11 +163,24 @@ def main():
             help='Number of LSTM units in each layer')
     args = parser.parse_args()
 
+    global xp
+    xp = cuda.cupy if args.gpu >= 0 else np
+
+    f = open('vocab.bin', 'rb')
+    word2index = pickle.load(f)
+    f.close()
+    index2word = {wid: word for word, wid in word2index.items()}
+    n_vocab = len(word2index)
+
+    docs_data = docs_to_index(word2index, 'data')
+    iter = DocumentIterator(docs_data, 5)
+
     print("\n-------------------------------------------")
     print('n_vocab = {}'.format(n_vocab))
     print('n_unit = {}'.format(args.unit))
     print('batch size = {}'.format(args.batchsize))
     print('stop_wid = {}'.format(word2index['\n']))
+
 
     model = SkipThought(n_vocab, args.unit, word2index['\n'])
 

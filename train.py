@@ -30,9 +30,9 @@ class Encoder(chainer.Chain):
     def __call__(self, xs):
         batch_size = len(xs)
         if self.hx is None:
-            self.hx = chainer.Variable(np.zeros((self.n_layers, batch_size, self.n_units), dtype=np.float32))
+            self.hx = chainer.Variable(xp.zeros((self.n_layers, batch_size, self.n_units), dtype=np.float32))
         if self.cx is None:
-            self.cx = chainer.Variable(np.zeros((self.n_layers, batch_size, self.n_units), dtype=np.float32))
+            self.cx = chainer.Variable(xp.zeros((self.n_layers, batch_size, self.n_units), dtype=np.float32))
         xs_ = [self.embed(x) for x in xs]
         self.hx, self.cx, _ = self.rnn(self.hx, self.cx, xs_, self.train)
         return self.hx[0]
@@ -54,9 +54,9 @@ class Decoder(chainer.Chain):
             for i in range(length):
                 output_word = self.output_layer(context)
                 target_word = [target[j][i].data if i < len(target[j]) else self.stop_wid for j in range(len(target))]
-                target_word = np.asarray(target_word, dtype=np.int32)
+                target_word = xp.asarray(target_word, dtype=np.int32)
                 loss += F.softmax_cross_entropy(output_word, target_word)
-                output = target_word if output is None else np.c_[output, target_word]
+                output = output_word.data if output is None else [[a, b] for a, b in zip(output, output_word.data)]
             return output, loss
         else:
             while next_word is not word2index(eos) and len(output) < self.max_len:
@@ -81,13 +81,13 @@ class SkipThought(chainer.Chain):
 
     def __call__(self, input_sentences):
 
-        context = self.encoder(input_sentences[:,1])
+        context = self.encoder([s[1] for s in input_sentences])
         loss = 0
         outputs = []
         if  self.train:
             #TODO:range使わないで書けた気がする
             for decoder, i in zip([self.prev_decoder, self.self_decoder, self.next_decoder], range(3)):
-                o, l = decoder(context, input_sentences[:,i], self.train)
+                o, l = decoder(context, [s[i] for s in input_sentences], self.train)
                 loss += l
                 outputs.append(o)
             return loss
@@ -115,9 +115,9 @@ class DocumentIterator(chainer.dataset.Iterator):
     def gen_data(self, dataset):
         for doc in dataset:
             for i in range(1, len(doc)-1):
-                yield (np.asarray(doc[i-1], dtype=np.int32),
-                        np.asarray(doc[i], dtype=np.int32),
-                        np.asarray(doc[i+1], dtype=np.int32))
+                yield (xp.asarray(doc[i-1], dtype=np.int32),
+                        xp.asarray(doc[i], dtype=np.int32),
+                        xp.asarray(doc[i+1], dtype=np.int32))
 
 class BPTTUpdater(training.StandardUpdater):
 
@@ -145,11 +145,11 @@ class BPTTUpdater(training.StandardUpdater):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batchsize', '-b', type=int, default=100,
+    parser.add_argument('--batchsize', '-b', type=int, default=2,
             help='batch size')
     parser.add_argument('--bproplen', '-l', type=int, default=35,
             help='length of trancated BPTT')
-    parser.add_argument('--epoch', '-e', type=int, default=1000,
+    parser.add_argument('--epoch', '-e', type=int, default=100,
             help='epoch')
     parser.add_argument('--gpu', '-g', type=int, default=-1,
             help='GPU ID')

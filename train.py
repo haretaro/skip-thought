@@ -6,6 +6,7 @@ from chainer import cuda
 from chainer import training
 from chainer.iterators import SerialIterator
 from chainer.training import extensions
+from chainer import reporter, report
 from document_reader import docs_to_index
 import numpy as np
 import pickle
@@ -56,7 +57,7 @@ class Decoder(chainer.Chain):
                 target_word = [target[j][i].data if i < len(target[j]) else self.stop_wid for j in range(len(target))]
                 target_word = xp.asarray(target_word, dtype=np.int32)
                 loss += F.softmax_cross_entropy(output_word, target_word)
-                output = output_word.data if output is None else [[a, b] for a, b in zip(output, output_word.data)]
+                #output = output_word.data if output is None else [[a, b] for a, b in zip(output, output_word.data)]
             return output, loss
         else:
             while next_word is not word2index(eos) and len(output) < self.max_len:
@@ -78,6 +79,7 @@ class SkipThought(chainer.Chain):
                 next_decoder = Decoder(n_vocab, n_units, stop_wid)
         )
         self.train = train
+        self.loss = 0
 
     def __call__(self, input_sentences):
 
@@ -90,6 +92,8 @@ class SkipThought(chainer.Chain):
                 o, l = decoder(context, [s[i] for s in input_sentences], self.train)
                 loss += l
                 outputs.append(o)
+            self.loss = loss
+            report({'loss': self.loss}, self)
             return loss
         else:
             raise(NotImplemented)
@@ -134,7 +138,6 @@ class BPTTUpdater(training.StandardUpdater):
 
         for i in range(self.bprop_len):
             batch = train_iter.__next__()
-            #x = xp.asarray(batch)
             x = [chainer.Variable(u) for u in batch]
             loss += optimizer.target(x)
 
@@ -196,9 +199,10 @@ def main():
 
     updater = BPTTUpdater(train_iter, optimizer, args.bproplen, args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
+    trainer.extend(extensions.dump_graph('main/loss'))
     trainer.extend(extensions.LogReport(trigger=(10, 'iteration')))
     trainer.extend(extensions.PrintReport(
-        ['epoch', 'iteration', 'main/loss', 'main/accuracy']
+        ['epoch', 'iteration', 'main/loss']
         ))
     trainer.extend(extensions.ProgressBar(
         update_interval=1

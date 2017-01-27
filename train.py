@@ -57,13 +57,10 @@ class Decoder(chainer.Chain):
                 target_word = [target[j][i].data if i < len(target[j]) else self.stop_wid for j in range(len(target))]
                 target_word = xp.asarray(target_word, dtype=np.int32)
                 loss += F.softmax_cross_entropy(output_word, target_word)
-                #output = output_word.data if output is None else [[a, b] for a, b in zip(output, output_word.data)]
+                output = output_word.data if output is None else [[a, b] for a, b in zip(output, output_word.data)]
             return output, loss
         else:
-            while next_word is not word2index(eos) and len(output) < self.max_len:
-                output_word = self.output_layer(context)
-                output += output_word.data
-                return output
+            raise(NotImplemented)
 
     def reset(self):
         self.rnn.reset_state()
@@ -200,6 +197,7 @@ def main():
     updater = BPTTUpdater(train_iter, optimizer, args.bproplen, args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
     trainer.extend(extensions.dump_graph('main/loss'))
+    trainer.extend(extensions.snapshot(), trigger=(args.epoch, 'epoch'))
     trainer.extend(extensions.LogReport(trigger=(10, 'iteration')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'iteration', 'main/loss']

@@ -197,7 +197,7 @@ def main():
     updater = BPTTUpdater(train_iter, optimizer, args.bproplen, args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
     trainer.extend(extensions.dump_graph('main/loss'))
-    trainer.extend(extensions.snapshot(), trigger=(args.epoch, 'epoch'))
+    trainer.extend(extensions.snapshot(), trigger=(1, 'epoch')) #1epoch 毎にモデルを保存
     trainer.extend(extensions.LogReport(trigger=(10, 'iteration')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'iteration', 'main/loss']

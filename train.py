@@ -173,7 +173,6 @@ def main():
     n_vocab = len(word2index)
 
     docs_data = docs_to_index(word2index, 'data')
-    iter = DocumentIterator(docs_data, 5)
 
     print("\n-------------------------------------------")
     print('n_vocab = {}'.format(n_vocab))

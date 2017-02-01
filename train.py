@@ -53,7 +53,7 @@ class Decoder(chainer.Chain):
         if train:
             length = max([len(x) for x in target])
             for i in range(length):
-                output_word = self.output_layer(self(context))
+                output_word = self.output_layer(self.rnn(context))
                 target_word = [target[j][i].data if i < len(target[j]) else self.stop_wid for j in range(len(target))]
                 target_word = xp.asarray(target_word, dtype=np.int32)
                 loss += F.softmax_cross_entropy(output_word, target_word)
@@ -162,7 +162,7 @@ def main():
             help='Directory to output the result')
     parser.add_argument('--source', '-s', type=str, default='data',
             help='path to data directory')
-    parser.add_argument('--unit', '-u', type=int, default=650,
+    parser.add_argument('--unit', '-u', type=int, default=100,
             help='Number of LSTM units in each layer')
     args = parser.parse_args()
 

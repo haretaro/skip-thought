@@ -50,7 +50,6 @@ class Decoder(chainer.Chain):
     def __call__(self, context, target=None, train=True):
         output = []
         loss = 0
-        prev = None
         if train:
             length = max([len(x) for x in target])
             for i in range(length):
@@ -167,7 +166,7 @@ def main():
             help='path to data directory')
     parser.add_argument('--unit', '-u', type=int, default=100,
             help='Number of LSTM units in each layer')
-    parser.add_argument('--printreport', '-p', default=False, action='store_false')
+    parser.add_argument('--printreport', '-p', default=False, action='store_true')
     args = parser.parse_args()
 
     global xp

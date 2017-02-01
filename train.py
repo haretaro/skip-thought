@@ -50,11 +50,13 @@ class Decoder(chainer.Chain):
     def __call__(self, context, target=None, train=True):
         output = []
         loss = 0
+        prev = None
         if train:
             length = max([len(x) for x in target])
             for i in range(length):
                 output_word = self.output_layer(self.rnn(context))
                 target_word = [target[j][i].data if i < len(target[j]) else self.stop_wid for j in range(len(target))]
+                context = output_word
                 target_word = xp.asarray(target_word, dtype=np.int32)
                 loss += F.softmax_cross_entropy(output_word, target_word)
             return output, loss
@@ -62,6 +64,7 @@ class Decoder(chainer.Chain):
             output = []
             for i in range(self.max_len):
                 output_word = [np.argmax(w_) for w_ in self.output_layer(self.rnn(context)).data]
+                context = output_word
                 output.append(output_word)
             return output
 

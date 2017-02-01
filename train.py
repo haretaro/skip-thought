@@ -47,20 +47,23 @@ class Decoder(chainer.Chain):
         self.max_len=100
         self.stop_wid = stop_wid
 
-    def __call__(self, context, target, train):
-        output = None
+    def __call__(self, context, target=None, train=True):
+        output = []
         loss = 0
         if train:
             length = max([len(x) for x in target])
             for i in range(length):
-                output_word = self.output_layer(context)
+                output_word = self.output_layer(self(context))
                 target_word = [target[j][i].data if i < len(target[j]) else self.stop_wid for j in range(len(target))]
                 target_word = xp.asarray(target_word, dtype=np.int32)
                 loss += F.softmax_cross_entropy(output_word, target_word)
-                output = output_word.data if output is None else [[a, b] for a, b in zip(output, output_word.data)]
             return output, loss
         else:
-            raise(NotImplemented)
+            output = []
+            for i in range(self.max_len):
+                output_word = [np.argmax(w_) for w_ in self.output_layer(self.rnn(context)).data]
+                output.append(output_word)
+            return output
 
     def reset(self):
         self.rnn.reset_state()
@@ -173,7 +176,6 @@ def main():
     n_vocab = len(word2index)
 
     docs_data = docs_to_index(word2index, 'data')
-    iter = DocumentIterator(docs_data, 5)
 
     print("\n-------------------------------------------")
     print('n_vocab = {}'.format(n_vocab))

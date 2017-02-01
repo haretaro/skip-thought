@@ -43,7 +43,8 @@ model.encoder.reset()
 vec = model.encoder(xp.asarray([in_data], dtype=np.int32))
 print(vec.data)
 
-out = model.prev_decoder(vec, train=False)
+model.self_decoder.reset()
+out = model.self_decoder(vec, train=False)
 print(out)
 
 out_words = [index2word[x[0]] for x in out]

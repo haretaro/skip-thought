@@ -164,6 +164,7 @@ def main():
             help='path to data directory')
     parser.add_argument('--unit', '-u', type=int, default=100,
             help='Number of LSTM units in each layer')
+    parser.add_argument('--printreport', '-p', default=False, action='store_false')
     args = parser.parse_args()
 
     global xp
@@ -201,12 +202,14 @@ def main():
     trainer.extend(extensions.dump_graph('main/loss'))
     trainer.extend(extensions.snapshot(), trigger=(1, 'epoch')) #1epoch 毎にモデルを保存
     trainer.extend(extensions.LogReport(trigger=(10, 'iteration')))
-    #trainer.extend(extensions.PrintReport(
-    #    ['epoch', 'iteration', 'main/loss']
-    #    ))
-    #trainer.extend(extensions.ProgressBar(
-    #    update_interval=1
-    #    ))
+
+    if args.printreport is True:
+        trainer.extend(extensions.PrintReport(
+            ['epoch', 'iteration', 'main/loss']
+            ))
+        trainer.extend(extensions.ProgressBar(
+            update_interval=1
+            ))
 
     trainer.run()
 

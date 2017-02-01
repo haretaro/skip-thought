@@ -37,7 +37,7 @@ updater = BPTTUpdater(train_iter, optimizer, args.bproplen, args.gpu)
 trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
 chainer.serializers.load_npz(args.resume, trainer)
 
-in_data = [word2index[x] for x in ['名前', 'は', 'まだ', 'わから', 'ない']]
+in_data = [word2index[x] for x in ['理由', 'を', '知ら', 'ぬ', '科学', '者', '\n']]
 print(in_data)
 model.encoder.reset()
 vec = model.encoder(xp.asarray([in_data], dtype=np.int32))

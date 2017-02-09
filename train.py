@@ -52,6 +52,7 @@ class Decoder(chainer.Chain):
         loss = 0
         if train:
             length = max([len(x) for x in target])
+            self.rnn.set_state(context, context)
             for i in range(length):
                 context = self.rnn(context)
                 output_word = self.output_layer(context)

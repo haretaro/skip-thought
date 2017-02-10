@@ -17,20 +17,20 @@ f.close()
 index2word = {wid: word for word, wid in word2index.items()}
 n_vocab = len(word2index)
 
-def load_model(snap_shot, n_vocab, unit=100, batchsize=2, bproplen=35, gpu=-1, out='result', data_directory='data'):
+def load_model(snap_shot, n_vocab, unit=100, batchsize=2, bproplen=35, gpu=-1, epoch=100, out='result', data_directory='data'):
     docs_data = docs_to_index(word2index, data_directory)
     model = SkipThought(n_vocab, unit, word2index['\n'])
     train_iter = DocumentIterator(docs_data, batchsize)
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
     updater = BPTTUpdater(train_iter, optimizer, bproplen, gpu)
-    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=out)
+    trainer = training.Trainer(updater, (epoch, 'epoch'), out=out)
     chainer.serializers.load_npz(snap_shot, trainer)
     return model
 
 def to_vector(model, sentence):
     model.encoder.reset()
-    vec = model.encoder(xp.asarray([in_data], dtype=np.int32))
+    vec = model.encoder(xp.asarray([sentence], dtype=np.int32))
     return vec
 
 
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--out', type=str, default='result', help='Directory to output the result')
     args = parser.parse_args()
 
-    model = load_model(args.resume, n_vocab, args.unit, args.batchsize, args.bproplen, args.gpu, args.out, 'data')
+    model = load_model(args.resume, n_vocab, args.unit, args.batchsize, args.bproplen, args.gpu, args.epoch, args.out, 'data')
 
     in_data = [word2index[x] for x in ['名前', 'は', 'まだ', 'ない', '\n']]
 

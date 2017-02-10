@@ -168,6 +168,7 @@ def main():
     parser.add_argument('--unit', '-u', type=int, default=100,
             help='Number of LSTM units in each layer')
     parser.add_argument('--printreport', '-p', default=False, action='store_true')
+    parser.add_argument('--resume', '-r', type=str, default='')
     args = parser.parse_args()
 
     global xp
@@ -214,6 +215,8 @@ def main():
             update_interval=1
             ))
 
+    if args.resume:
+        chainer.serializers.load_npz(args.resume, trainer)
     trainer.run()
 
 if __name__ == '__main__':

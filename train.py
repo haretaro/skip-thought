@@ -61,7 +61,7 @@ class Decoder(chainer.Chain):
                 loss += F.softmax_cross_entropy(output_word, target_word)
             return output, loss
         else:
-            output = []
+            self.rnn.set_state(context, context)
             for i in range(self.max_len):
                 context = self.rnn(context)
                 output_word = [np.argmax(w_) for w_ in self.output_layer(context).data]

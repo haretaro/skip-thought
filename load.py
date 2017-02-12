@@ -2,7 +2,7 @@ import argparse
 import chainer
 from chainer import cuda
 from chainer import training
-from document_reader import docs_to_index
+from document_reader import docs_to_index, doc_to_index
 import numpy as np
 import pickle
 import train
@@ -47,12 +47,20 @@ if __name__ == '__main__':
 
     model = load_model(args.resume, n_vocab, args.unit, args.batchsize, args.bproplen, args.gpu, args.epoch, args.out, 'data')
 
-    in_data = [word2index[x] for x in ['名前', 'は', 'まだ', 'ない', '\n']]
+    doc = doc_to_index(word2index, 'data/wagahaiwa_nekodearu.txt')
+    doc = doc_to_index(word2index, 'data/kappa.txt')
 
-    vec = to_vector(model, in_data)
-    print(vec.data)
+    vec = to_vector(model, doc[30])
+    print([index2word[x] for x in doc[30]])
 
-    model.prev_decoder.reset()
+    out = model.prev_decoder(vec, train=False)
+    out = [index2word[x[0]] for x in out]
+    print(out)
+
     out = model.self_decoder(vec, train=False)
+    out = [index2word[x[0]] for x in out]
+    print(out)
+
+    out = model.next_decoder(vec, train=False)
     out = [index2word[x[0]] for x in out]
     print(out)

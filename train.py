@@ -66,6 +66,8 @@ class Decoder(chainer.Chain):
                 context = self.rnn(context)
                 output_word = [np.argmax(w_) for w_ in self.output_layer(context).data]
                 output.append(output_word)
+                if(output_word[0] == self.stop_wid):
+                    break
             return output
 
     def reset(self):

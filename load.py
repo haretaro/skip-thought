@@ -3,6 +3,7 @@ import chainer
 from chainer import cuda
 from chainer import training
 from document_reader import docs_to_index, doc_to_index
+import functools
 import numpy as np
 import pickle
 import train
@@ -51,16 +52,16 @@ if __name__ == '__main__':
     doc = doc_to_index(word2index, 'data/kappa.txt')
 
     vec = to_vector(model, doc[30])
-    print([index2word[x] for x in doc[30]])
+    print(functools.reduce((lambda x, y: x+y), [index2word[x] for x in doc[30]]))
 
     out = model.prev_decoder(vec, train=False)
     out = [index2word[x[0]] for x in out]
-    print(out)
+    print(functools.reduce((lambda x, y: x+y), out))
 
     out = model.self_decoder(vec, train=False)
     out = [index2word[x[0]] for x in out]
-    print(out)
+    print(functools.reduce((lambda x, y: x+y), out))
 
     out = model.next_decoder(vec, train=False)
     out = [index2word[x[0]] for x in out]
-    print(out)
+    print(functools.reduce((lambda x, y: x+y), out))

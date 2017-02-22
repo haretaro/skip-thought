@@ -41,6 +41,7 @@ class Encoder(chainer.Chain):
 class Decoder(chainer.Chain):
     def __init__(self, n_vocab, n_units, stop_wid, train=True):
         super(Decoder, self).__init__(
+                embed=L.EmbedID(n_vocab, n_units),
                 rnn=L.LSTM(n_units, n_units),
                 output_layer=L.Linear(n_units, n_vocab)
                 )
@@ -54,11 +55,12 @@ class Decoder(chainer.Chain):
             length = max([len(x) for x in target])
             self.rnn.set_state(context, context)
             for i in range(length):
-                context = self.rnn(context)
-                output_word = self.output_layer(context)
+                output_word = self.output_layer(self.rnn(context))
                 target_word = [target[j][i].data if i < len(target[j]) else self.stop_wid for j in range(len(target))]
                 target_word = xp.asarray(target_word, dtype=np.int32)
                 loss += F.softmax_cross_entropy(output_word, target_word)
+                c = xp.asarray([np.argmax(w_) for w_ in self.output_layer(context).data], dtype=np.int32)
+                context = self.embed(c)
             return output, loss
         else:
             self.rnn.set_state(context, context)

@@ -59,8 +59,8 @@ class Decoder(chainer.Chain):
                 target_word = [target[j][i].data if i < len(target[j]) else self.stop_wid for j in range(len(target))]
                 target_word = xp.asarray(target_word, dtype=np.int32)
                 loss += F.softmax_cross_entropy(output_word, target_word)
-                c = xp.asarray([np.argmax(w_) for w_ in self.output_layer(context).data], dtype=np.int32)
-                context = self.embed(c)
+                #c = xp.asarray([np.argmax(w_) for w_ in self.output_layer(context).data], dtype=np.int32)
+                context = self.embed(target_word)
             return output, loss
         else:
             self.rnn.set_state(context, context)
